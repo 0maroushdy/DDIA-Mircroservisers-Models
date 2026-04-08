@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "com.example.trending.grpc";
+
+package trending;
+
+service TrendingMoviesService {
+    rpc GetTopMovies (TopMoviesRequest)
+        returns (TopMoviesResponse);
+}
+
+message TopMoviesRequest {
+    int32 count = 1;
+}
+
+message TopMoviesResponse {
+    repeated TrendingMovie movies = 1;
+}
+
+message TrendingMovie {
+    string movie_id = 1;
+    double average_rating = 2;
+    int32 rating_count = 3;
+}
