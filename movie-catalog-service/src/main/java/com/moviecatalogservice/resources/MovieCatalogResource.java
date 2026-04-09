@@ -1,19 +1,20 @@
 package com.moviecatalogservice.resources;
 
 import com.moviecatalogservice.models.CatalogItem;
+import com.moviecatalogservice.models.Movie;
 import com.moviecatalogservice.models.Rating;
-import com.moviecatalogservice.models.TrendingMovieItem;
 import com.moviecatalogservice.models.UserRating;
 import com.moviecatalogservice.services.MovieInfoService;
-import com.moviecatalogservice.services.TrendingClient;
 import com.moviecatalogservice.services.UserRatingService;
-import org.springframework.web.bind.annotation.GetMapping;
+import com.netflix.hystrix.contrib.javanica.annotation.HystrixCommand;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @RestController
@@ -26,17 +27,13 @@ public class MovieCatalogResource {
 
     private final UserRatingService userRatingService;
 
-    private final TrendingClient trendingClient;
-
     public MovieCatalogResource(RestTemplate restTemplate,
                                 MovieInfoService movieInfoService,
-                                UserRatingService userRatingService,
-                                TrendingClient trendingClient) {
+                                UserRatingService userRatingService) {
 
         this.restTemplate = restTemplate;
         this.movieInfoService = movieInfoService;
         this.userRatingService = userRatingService;
-        this.trendingClient = trendingClient;
     }
 
     /**
@@ -50,15 +47,5 @@ public class MovieCatalogResource {
     public List<CatalogItem> getCatalog(@PathVariable String userId) {
         List<Rating> ratings = userRatingService.getUserRating(userId).getRatings();
         return ratings.stream().map(movieInfoService::getCatalogItem).collect(Collectors.toList());
-    }
-
-    @GetMapping("/trending")
-    public List<TrendingMovieItem> getTrendingMovies() {
-        return trendingClient.getTopMovies(10).getMoviesList().stream()
-                .map(m -> new TrendingMovieItem(
-                        m.getMovieId(),
-                        m.getAverageRating(),
-                        m.getRatingCount()))
-                .collect(Collectors.toList());
     }
 }

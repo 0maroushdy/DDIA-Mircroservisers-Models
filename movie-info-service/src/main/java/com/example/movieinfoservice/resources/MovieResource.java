@@ -1,33 +1,54 @@
 package com.example.movieinfoservice.resources;
 
-import com.example.movieinfoservice.models.Movie;
-import com.example.movieinfoservice.models.MovieSummary;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
+import java.time.LocalDateTime;
+import java.util.Optional;
+
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.client.RestTemplate;
+
+import com.example.movieinfoservice.models.CachedMovie;
+import com.example.movieinfoservice.models.CachedMovieRepository;
+import com.example.movieinfoservice.models.Movie;
 
 @RestController
 @RequestMapping("/movies")
 public class MovieResource {
 
-    @Value("${api.key}")
-    private String apiKey;
-
-    private RestTemplate restTemplate;
-
-    public MovieResource(RestTemplate restTemplate) {
-        this.restTemplate = restTemplate;
-    }
+    @Autowired
+    private CachedMovieRepository cacheRepo;
 
     @RequestMapping("/{movieId}")
     public Movie getMovieInfo(@PathVariable("movieId") String movieId) {
-        // Get the movie info from TMDB
-        final String url = "https://api.themoviedb.org/3/movie/" + movieId + "?api_key=" + apiKey;
-        MovieSummary movieSummary = restTemplate.getForObject(url, MovieSummary.class);
 
-        return new Movie(movieId, movieSummary.getTitle(), movieSummary.getOverview());
+        // 1. Check MongoDB cache first
+        Optional<CachedMovie> cached = cacheRepo.findById(movieId);
+        if (cached.isPresent()) {
+            CachedMovie c = cached.get();
+            return new Movie(c.getMovieId(), c.getName(), c.getDescription());
+        }
+
+        // 2. Cache miss — use mock data with delay
+        Movie movie = fetchMockMovie(movieId);
+
+        // 3. Save to MongoDB
+        cacheRepo.save(new CachedMovie(
+            movieId,
+            movie.getName(),
+            movie.getDescription(),
+            LocalDateTime.now()
+        ));
+
+        return movie;
+    }
+
+    private Movie fetchMockMovie(String movieId) {
+        try {
+            Thread.sleep(300);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        return new Movie(movieId, "Movie " + movieId, "Description for movie " + movieId);
     }
 }
